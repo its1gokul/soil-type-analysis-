@@ -1,0 +1,13 @@
+{
+  "test_accuracy": 1.0,
+  "images_total": 400,
+  "images_per_class": 80,
+  "classes": [
+    "Black_Soil",
+    "Red_Soil",
+    "Alluvial_Soil",
+    "Clay_Soil",
+    "Sandy_Soil"
+  ],
+  "note": " accuracy is only for this synthetic dataset."
+}
