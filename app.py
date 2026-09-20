@@ -126,89 +126,83 @@ if uploaded is not None:
         np.max(probabilities)
     ) * 100
 
+# -------------------------------
+# Soil Recommendation Data
+# -------------------------------
 
-    # -------------------------------
-    # Recommendation
-    # -------------------------------
+recommendations = {
 
-    recommendations = pd.read_csv(
-        "data/soil_crop_recommendations.csv"
-    )
+    "Black_Soil": {
+        "primary": "Cotton",
+        "other": "Soybean, Sorghum, Groundnut",
+        "advisory": "Generally suitable for several crops. Check drainage, pH and nutrient levels."
+    },
 
-    result = recommendations[
-        recommendations["Soil_Type"] == predicted
-    ]
+    "Red_Soil": {
+        "primary": "Groundnut",
+        "other": "Millets, Pulses, Maize",
+        "advisory": "Can support agriculture. Fertility and moisture management are important."
+    },
+
+    "Alluvial_Soil": {
+        "primary": "Rice",
+        "other": "Wheat, Sugarcane, Vegetables",
+        "advisory": "Often suitable for many crops. Water availability and soil nutrients should be checked."
+    },
+
+    "Clay_Soil": {
+        "primary": "Rice",
+        "other": "Wheat, Vegetables",
+        "advisory": "Good water retention but drainage should be managed."
+    },
+
+    "Sandy_Soil": {
+        "primary": "Groundnut",
+        "other": "Millets, Watermelon",
+        "advisory": "Water and nutrient retention can be lower. Irrigation and organic matter management may help."
+    }
+}
 
 
-    if len(result) > 0:
+# -------------------------------
+# Display Prediction
+# -------------------------------
 
-        row = result.iloc[0]
+if predicted in recommendations:
 
-        col1, col2 = st.columns(2)
+    recommendation = recommendations[predicted]
 
-        with col1:
+    col1, col2 = st.columns(2)
 
-            st.success(
-                f"Estimated Soil Type: "
-                f"{predicted.replace('_', ' ')}"
-            )
+    with col1:
 
-        with col2:
-
-            st.info(
-                f"Model Confidence: "
-                f"{confidence:.1f}%"
-            )
-
-
-        st.subheader("🌾 Crop Recommendation")
-
-        st.write(
-            f"**Primary Crop:** {row['Primary_Crop']}"
+        st.success(
+            f"Estimated Soil Type: "
+            f"{predicted.replace('_', ' ')}"
         )
 
-        st.write(
-            f"**Other Suitable Crops:** "
-            f"{row['Other_Suitable_Crops']}"
+    with col2:
+
+        st.info(
+            f"Model Confidence: "
+            f"{confidence:.1f}%"
         )
 
-        st.write(
-            f"**Advisory:** {row['Advisory']}"
-        )
 
-
-    # -------------------------------
-    # Important information
-    # -------------------------------
-
-    st.subheader("⚠️ Important")
+    st.subheader("🌾 Crop Recommendation")
 
     st.write(
-        """
-        For actual agricultural decisions, soil laboratory testing
-        should be performed for:
-
-        • pH  
-        • Nitrogen (N)  
-        • Phosphorus (P)  
-        • Potassium (K)  
-        • Electrical Conductivity (EC)  
-        • Moisture  
-        • Organic Carbon
-        """
+        f"**Primary Crop:** "
+        f"{recommendation['primary']}"
     )
 
+    st.write(
+        f"**Other Suitable Crops:** "
+        f"{recommendation['other']}"
+    )
 
-# -------------------------------
-# Project Information
-# -------------------------------
-
-st.subheader("📊 About This Project")
-
-st.write(
-    """
-    This project uses a Machine Learning model to classify soil
-    images into different visual soil categories and provide
-    basic crop recommendations.
-    """
+    st.write(
+        f"**Advisory:** "
+        f"{recommendation['advisory']}"
+    )
 )
