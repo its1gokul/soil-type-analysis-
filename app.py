@@ -1,8 +1,12 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
 import joblib
 from PIL import Image
+
+
+# --------------------------------
+# Page Configuration
+# --------------------------------
 
 st.set_page_config(
     page_title="Soil Image & Crop Recommendation",
@@ -11,24 +15,25 @@ st.set_page_config(
 )
 
 
-# -------------------------------
-# Load trained model
-# -------------------------------
+# --------------------------------
+# Load Model
+# --------------------------------
 
 @st.cache_resource
 def load_model():
     return joblib.load("models/soil_classifier.pkl")
 
 
-# -------------------------------
+# --------------------------------
 # Image Feature Extraction
-# -------------------------------
+# --------------------------------
 
 def features_from_image(image):
 
-    im = np.asarray(
-        image.convert("RGB").resize((64, 64))
-    ).astype(np.float32) / 255.0
+    image = image.convert("RGB")
+    image = image.resize((64, 64))
+
+    im = np.asarray(image).astype(np.float32) / 255.0
 
     features = []
 
@@ -37,23 +42,29 @@ def features_from_image(image):
 
         channel = im[:, :, c]
 
-        features += [
-            float(channel.mean()),
-            float(channel.std()),
-            float(np.percentile(channel, 25)),
-            float(np.percentile(channel, 75))
-        ]
+        features.append(float(channel.mean()))
+        features.append(float(channel.std()))
+        features.append(float(np.percentile(channel, 25)))
+        features.append(float(np.percentile(channel, 75)))
+
 
     # Texture features
     gray = im.mean(axis=2)
 
-    features += [
-        float(np.abs(np.diff(gray, axis=1)).mean()),
-        float(np.abs(np.diff(gray, axis=0)).mean()),
-        float(np.var(gray))
-    ]
+    features.append(
+        float(np.abs(np.diff(gray, axis=1)).mean())
+    )
 
-    # Spatial color features
+    features.append(
+        float(np.abs(np.diff(gray, axis=0)).mean())
+    )
+
+    features.append(
+        float(np.var(gray))
+    )
+
+
+    # Spatial features
     for yy in range(4):
 
         for xx in range(4):
@@ -63,9 +74,10 @@ def features_from_image(image):
                 xx * 16:(xx + 1) * 16
             ]
 
-            features += list(
-                block.mean(axis=(0, 1))
+            features.extend(
+                block.mean(axis=(0, 1)).tolist()
             )
+
 
     return np.array(
         features,
@@ -73,62 +85,9 @@ def features_from_image(image):
     ).reshape(1, -1)
 
 
-# -------------------------------
-# Application
-# -------------------------------
-
-st.title("🌱 Soil Image Classification & Crop Recommendation")
-
-st.write(
-    "Upload a soil image to estimate its visual soil category "
-    "and receive basic crop recommendations."
-)
-
-
-st.warning(
-    "Educational prototype: image-only classification cannot reliably "
-    "measure pH, NPK, EC, moisture or guarantee crop suitability. "
-    "Use a laboratory soil test for real agricultural decisions."
-)
-
-
-# Load model
-model = load_model()
-
-
-# Upload image
-uploaded = st.file_uploader(
-    "Upload Soil Image",
-    type=["jpg", "jpeg", "png"]
-)
-
-
-if uploaded is not None:
-
-    image = Image.open(uploaded).convert("RGB")
-
-    st.image(
-        image,
-        caption="Uploaded Soil Image",
-        width=420
-    )
-
-    # Extract features
-    X = features_from_image(image)
-
-    # Prediction
-    predicted = model.predict(X)[0]
-
-    # Probability
-    probabilities = model.predict_proba(X)[0]
-
-    confidence = float(
-        np.max(probabilities)
-    ) * 100
-
-# -------------------------------
-# Soil Recommendation Data
-# -------------------------------
+# --------------------------------
+# Crop Recommendation
+# --------------------------------
 
 recommendations = {
 
@@ -147,13 +106,13 @@ recommendations = {
     "Alluvial_Soil": {
         "primary": "Rice",
         "other": "Wheat, Sugarcane, Vegetables",
-        "advisory": "Often suitable for many crops. Water availability and soil nutrients should be checked."
+        "advisory": "Often suitable for many crops. Check water availability and soil nutrients."
     },
 
     "Clay_Soil": {
         "primary": "Rice",
         "other": "Wheat, Vegetables",
-        "advisory": "Good water retention but drainage should be managed."
+        "advisory": "Good water retention, but proper drainage should be maintained."
     },
 
     "Sandy_Soil": {
@@ -164,45 +123,174 @@ recommendations = {
 }
 
 
-# -------------------------------
-# Display Prediction
-# -------------------------------
+# --------------------------------
+# Application
+# --------------------------------
 
-if predicted in recommendations:
+st.title(
+    "🌱 Soil Image Classification & Crop Recommendation"
+)
 
-    recommendation = recommendations[predicted]
+st.write(
+    "Upload a soil image to estimate the soil category "
+    "and receive basic crop recommendations."
+)
+
+
+st.warning(
+    "Educational prototype: image-only classification cannot "
+    "reliably measure pH, NPK, EC, moisture or guarantee crop "
+    "suitability. Use laboratory soil testing for real agricultural decisions."
+)
+
+
+# --------------------------------
+# Load Model
+# --------------------------------
+
+model = load_model()
+
+
+# --------------------------------
+# Upload Image
+# --------------------------------
+
+uploaded = st.file_uploader(
+    "📷 Upload Soil Image",
+    type=["jpg", "jpeg", "png"]
+)
+
+
+# --------------------------------
+# Prediction
+# --------------------------------
+
+if uploaded is not None:
+
+    image = Image.open(uploaded).convert("RGB")
+
+    st.image(
+        image,
+        caption="Uploaded Soil Image",
+        width=420
+    )
+
+
+    # Feature extraction
+    X = features_from_image(image)
+
+
+    # Prediction
+    predicted = model.predict(X)[0]
+
+
+    # Probability
+    probabilities = model.predict_proba(X)[0]
+
+    confidence = float(
+        np.max(probabilities)
+    ) * 100
+
+
+    # --------------------------------
+    # Result
+    # --------------------------------
 
     col1, col2 = st.columns(2)
+
 
     with col1:
 
         st.success(
-            f"Estimated Soil Type: "
-            f"{predicted.replace('_', ' ')}"
+            "Estimated Soil Type: "
+            + predicted.replace("_", " ")
         )
+
 
     with col2:
 
         st.info(
-            f"Model Confidence: "
-            f"{confidence:.1f}%"
+            f"Model Confidence: {confidence:.1f}%"
         )
 
 
+    # --------------------------------
+    # Crop Recommendation
+    # --------------------------------
+
     st.subheader("🌾 Crop Recommendation")
 
-    st.write(
-        f"**Primary Crop:** "
-        f"{recommendation['primary']}"
-    )
+
+    if predicted in recommendations:
+
+        recommendation = recommendations[predicted]
+
+
+        st.write(
+            "**Primary Crop:** "
+            + recommendation["primary"]
+        )
+
+
+        st.write(
+            "**Other Suitable Crops:** "
+            + recommendation["other"]
+        )
+
+
+        st.write(
+            "**Advisory:** "
+            + recommendation["advisory"]
+        )
+
+
+    else:
+
+        st.warning(
+            "No crop recommendation available for this soil type."
+        )
+
+
+    # --------------------------------
+    # Important Information
+    # --------------------------------
+
+    st.subheader("⚠️ Important")
+
 
     st.write(
-        f"**Other Suitable Crops:** "
-        f"{recommendation['other']}"
+        """
+        For actual agricultural decisions, laboratory soil testing
+        should be performed for:
+
+        • pH
+
+        • Nitrogen (N)
+
+        • Phosphorus (P)
+
+        • Potassium (K)
+
+        • Electrical Conductivity (EC)
+
+        • Moisture
+
+        • Organic Carbon
+        """
     )
 
-    st.write(
-        f"**Advisory:** "
-        f"{recommendation['advisory']}"
-    )
+
+# --------------------------------
+# About Project
+# --------------------------------
+
+st.subheader("📊 About This Project")
+
+
+st.write(
+    """
+    This project uses a Machine Learning model to classify
+    soil images into different visual soil categories and
+    provide basic crop recommendations.
+    """
 )
